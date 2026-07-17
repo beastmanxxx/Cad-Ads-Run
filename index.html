@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auto Launcher - Admin Panel</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #0f172a; color: #f8fafc; }
+        .glass-panel { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.1); }
+        .hidden { display: none !important; }
+        /* Mobile sidebar transitions */
+        .sidebar-mobile { transform: translateX(-100%); transition: transform 0.3s ease-in-out; position: absolute; height: 100%; z-index: 40; }
+        .sidebar-mobile.open { transform: translateX(0); }
+        @media (min-width: 768px) {
+            .sidebar-mobile { transform: translateX(0); position: relative; height: auto; z-index: 0; }
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+    <!-- Login Screen -->
+    <div id="login-screen" class="flex items-center justify-center min-h-screen p-4">
+        <div class="glass-panel p-8 rounded-xl shadow-2xl w-full max-w-sm text-center">
+            <h1 class="text-2xl font-bold mb-6 text-white">Admin Login</h1>
+            <input type="text" id="login-username" placeholder="Username" class="w-full p-3 mb-4 rounded bg-slate-800 border border-slate-600 text-white focus:outline-none focus:border-blue-500">
+            <input type="password" id="login-password" placeholder="Password (Optional)" class="w-full p-3 mb-6 rounded bg-slate-800 border border-slate-600 text-white focus:outline-none focus:border-blue-500">
+            <button id="login-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded transition duration-200">Login</button>
+            <p id="login-error" class="text-red-400 mt-4 hidden">Access Denied. You must be an admin.</p>
+        </div>
+    </div>
+
+    <!-- Admin Dashboard -->
+    <div id="dashboard-screen" class="hidden flex-1 flex flex-col h-screen overflow-hidden relative">
+        <!-- Header -->
+        <header class="glass-panel px-4 md:px-6 py-4 flex justify-between items-center shadow-md z-50">
+            <div class="flex items-center gap-3">
+                <!-- Hamburger Button (Mobile Only) -->
+                <button id="menu-btn" class="md:hidden text-white hover:text-blue-400 transition">
+                    <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+                </button>
+                <h1 class="text-lg md:text-xl font-bold text-white flex items-center">
+                    <svg class="w-5 h-5 md:w-6 md:h-6 mr-2 text-blue-500 hidden sm:block" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                    Control Panel
+                </h1>
+            </div>
+            <div class="flex items-center gap-2 md:gap-4">
+                <span id="current-admin" class="text-sm md:text-base text-slate-300 hidden sm:block">Logged in as: <strong class="text-white">Admin</strong></span>
+                <button id="logout-btn" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 md:px-4 md:py-2 rounded text-sm md:text-base transition">Logout</button>
+            </div>
+        </header>
+
+        <div class="flex flex-1 overflow-hidden relative">
+            <!-- Sidebar Background Overlay for Mobile -->
+            <div id="sidebar-overlay" class="hidden fixed inset-0 bg-black/50 z-30 md:hidden"></div>
+
+            <!-- Sidebar -->
+            <aside id="sidebar" class="glass-panel w-64 flex flex-col p-4 shadow-lg sidebar-mobile bg-slate-900 md:bg-transparent">
+                <div class="md:hidden flex justify-between items-center mb-6 pb-4 border-b border-slate-700">
+                    <span class="font-bold text-white">Menu</span>
+                    <button id="close-menu-btn" class="text-slate-400 hover:text-white">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    </button>
+                </div>
+                
+                <button id="nav-users" class="flex items-center gap-3 p-3 mb-2 rounded bg-blue-600/30 text-blue-300 font-semibold transition hover:bg-slate-700">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+                    Manage Users
+                </button>
+                <button id="nav-campaigns" class="flex items-center gap-3 p-3 rounded text-slate-300 transition hover:bg-slate-700">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+                    Manage Campaigns
+                </button>
+            </aside>
+
+            <!-- Main Content Area -->
+            <main class="flex-1 p-4 md:p-6 overflow-y-auto">
+                <!-- Users Section -->
+                <section id="section-users" class="fade-in">
+                    <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6 gap-3">
+                        <h2 class="text-xl md:text-2xl font-bold">Registered Users</h2>
+                        <button onclick="loadUsers()" class="bg-slate-700 hover:bg-slate-600 px-4 py-2 rounded text-sm transition self-start sm:self-auto">Refresh</button>
+                    </div>
+                    <div class="glass-panel rounded-xl overflow-x-auto shadow-lg">
+                        <table class="w-full text-left border-collapse min-w-[400px]">
+                            <thead>
+                                <tr class="bg-slate-800 border-b border-slate-700">
+                                    <th class="p-3 md:p-4 font-semibold text-slate-300">Username</th>
+                                    <th class="p-3 md:p-4 font-semibold text-slate-300">Role</th>
+                                    <th class="p-3 md:p-4 font-semibold text-slate-300">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="users-table-body">
+                                <tr><td colspan="3" class="p-4 text-center text-slate-400">Loading users...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- Campaigns Section -->
+                <section id="section-campaigns" class="hidden fade-in">
+                    <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6 gap-3">
+                        <h2 class="text-xl md:text-2xl font-bold">Video Campaigns</h2>
+                        <div class="flex gap-2 self-start sm:self-auto">
+                            <button onclick="loadCampaigns()" class="bg-slate-700 hover:bg-slate-600 px-3 md:px-4 py-2 rounded text-sm transition">Refresh</button>
+                            <button id="add-campaign-btn" class="bg-green-600 hover:bg-green-700 px-3 md:px-4 py-2 rounded text-sm font-bold transition flex items-center gap-1">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                                Add Campaign
+                            </button>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6" id="campaigns-grid">
+                        <!-- Campaign Cards Go Here -->
+                        <div class="col-span-full text-center text-slate-400">Loading campaigns...</div>
+                    </div>
+                </section>
+            </main>
+        </div>
+    </div>
+
+    <!-- Add/Edit Campaign Modal -->
+    <div id="campaign-modal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
+        <div class="glass-panel rounded-xl w-full max-w-md p-6">
+            <h3 id="modal-title" class="text-xl font-bold mb-4">Add Campaign</h3>
+            <input type="hidden" id="modal-camp-id">
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-slate-300 mb-1">Campaign Name</label>
+                    <input type="text" id="modal-camp-name" class="w-full p-2 rounded bg-slate-800 border border-slate-600 text-white focus:outline-none focus:border-blue-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-300 mb-1">Video URL (MP4/YouTube)</label>
+                    <input type="url" id="modal-camp-url" class="w-full p-2 rounded bg-slate-800 border border-slate-600 text-white focus:outline-none focus:border-blue-500" placeholder="https://example.com/video.mp4">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-300 mb-1">Checkout URL (Optional)</label>
+                    <input type="url" id="modal-camp-checkout" class="w-full p-2 rounded bg-slate-800 border border-slate-600 text-white focus:outline-none focus:border-blue-500" placeholder="https://example.com/buy">
+                </div>
+                <div class="flex gap-4">
+                    <div class="flex-1">
+                        <label class="block text-sm font-medium text-slate-300 mb-1">Target Views</label>
+                        <input type="number" id="modal-camp-target-views" class="w-full p-2 rounded bg-slate-800 border border-slate-600 text-white focus:outline-none focus:border-blue-500" value="1000">
+                    </div>
+                </div>
+                <div class="flex gap-4">
+                    <div class="flex-1">
+                        <label class="block text-sm font-medium text-slate-300 mb-1">Duration Value</label>
+                        <input type="number" id="modal-camp-duration-val" class="w-full p-2 rounded bg-slate-800 border border-slate-600 text-white focus:outline-none focus:border-blue-500" value="1">
+                    </div>
+                    <div class="flex-1">
+                        <label class="block text-sm font-medium text-slate-300 mb-1">Duration Unit</label>
+                        <select id="modal-camp-duration-unit" class="w-full p-2 rounded bg-slate-800 border border-slate-600 text-white focus:outline-none focus:border-blue-500">
+                            <option value="hours">Hours</option>
+                            <option value="days">Days</option>
+                            <option value="weeks">Weeks</option>
+                            <option value="months">Months</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="flex justify-end gap-3 mt-6">
+                <button id="modal-cancel" class="px-4 py-2 rounded text-slate-300 hover:bg-slate-800 transition border border-slate-600">Cancel</button>
+                <button id="modal-save" class="px-4 py-2 rounded bg-blue-600 hover:bg-blue-700 text-white transition">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDK Setup -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+        import { getFirestore, collection, getDocs, doc, updateDoc, setDoc, deleteDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+        // Your web app's Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyDaFMrmnMDoZvHWbx6jStF-UYOoSQXY7Kw",
+            authDomain: "auto-launch-5f500.firebaseapp.com",
+            projectId: "auto-launch-5f500",
+            storageBucket: "auto-launch-5f500.firebasestorage.app",
+            messagingSenderId: "658462315769",
+            appId: "1:658462315769:web:35edb48bb917efa2707e28"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // State
+        let currentUser = null;
+
+        // UI Elements
+        const loginScreen = document.getElementById('login-screen');
+        const dashboardScreen = document.getElementById('dashboard-screen');
+        const loginBtn = document.getElementById('login-btn');
+        const usernameInput = document.getElementById('login-username');
+        const loginError = document.getElementById('login-error');
+        const currentAdminLabel = document.getElementById('current-admin');
+        const logoutBtn = document.getElementById('logout-btn');
+
+        const navUsers = document.getElementById('nav-users');
+        const navCampaigns = document.getElementById('nav-campaigns');
+        const sectionUsers = document.getElementById('section-users');
+        const sectionCampaigns = document.getElementById('section-campaigns');
+
+        const usersTableBody = document.getElementById('users-table-body');
+        const campaignsGrid = document.getElementById('campaigns-grid');
+
+        // Mobile Sidebar Elements
+        const menuBtn = document.getElementById('menu-btn');
+        const closeMenuBtn = document.getElementById('close-menu-btn');
+        const sidebar = document.getElementById('sidebar');
+        const sidebarOverlay = document.getElementById('sidebar-overlay');
+
+        // Modal Elements
+        const campaignModal = document.getElementById('campaign-modal');
+        const modalTitle = document.getElementById('modal-title');
+        const modalCampId = document.getElementById('modal-camp-id');
+        const modalCampName = document.getElementById('modal-camp-name');
+        const modalCampUrl = document.getElementById('modal-camp-url');
+        const modalCampCheckout = document.getElementById('modal-camp-checkout');
+        const modalCampTargetViews = document.getElementById('modal-camp-target-views');
+        const modalCampDurationVal = document.getElementById('modal-camp-duration-val');
+        const modalCampDurationUnit = document.getElementById('modal-camp-duration-unit');
+        const modalCancel = document.getElementById('modal-cancel');
+        const modalSave = document.getElementById('modal-save');
+        const addCampaignBtn = document.getElementById('add-campaign-btn');
+
+        // Sidebar Toggle Logic
+        function toggleSidebar() {
+            sidebar.classList.toggle('open');
+            sidebarOverlay.classList.toggle('hidden');
+        }
+
+        menuBtn.addEventListener('click', toggleSidebar);
+        closeMenuBtn.addEventListener('click', toggleSidebar);
+        sidebarOverlay.addEventListener('click', toggleSidebar);
+
+        // Navigation
+        navUsers.addEventListener('click', () => {
+            sectionUsers.classList.remove('hidden');
+            sectionCampaigns.classList.add('hidden');
+            navUsers.classList.add('bg-blue-600/30', 'text-blue-300');
+            navUsers.classList.remove('text-slate-300');
+            navCampaigns.classList.remove('bg-blue-600/30', 'text-blue-300');
+            navCampaigns.classList.add('text-slate-300');
+            if(window.innerWidth < 768) toggleSidebar();
+            loadUsers();
+        });
+
+        navCampaigns.addEventListener('click', () => {
+            sectionCampaigns.classList.remove('hidden');
+            sectionUsers.classList.add('hidden');
+            navCampaigns.classList.add('bg-blue-600/30', 'text-blue-300');
+            navCampaigns.classList.remove('text-slate-300');
+            navUsers.classList.remove('bg-blue-600/30', 'text-blue-300');
+            navUsers.classList.add('text-slate-300');
+            if(window.innerWidth < 768) toggleSidebar();
+            loadCampaigns();
+        });
+
+        // Login Logic
+        loginBtn.addEventListener('click', async () => {
+            const username = usernameInput.value.trim();
+            if(!username) return;
+
+            loginBtn.textContent = "Checking...";
+            loginBtn.disabled = true;
+            loginError.classList.add('hidden');
+
+            try {
+                // Check user in firestore
+                const userDocRef = doc(db, 'users', username);
+                const userDoc = await getDoc(userDocRef);
+                
+                let isAdmin = false;
+                let userExists = false;
+
+                if (username.toLowerCase() === 'user1') {
+                    isAdmin = true; // Hardcoded fallback for user1
+                    userExists = true;
+                } else if (userDoc.exists()) {
+                    userExists = true;
+                    isAdmin = userDoc.data().isAdmin === true;
+                }
+
+                if(isAdmin) {
+                    currentUser = username;
+                    currentAdminLabel.innerHTML = `Logged in as: <strong class="text-white">${username}</strong>`;
+                    loginScreen.classList.add('hidden');
+                    dashboardScreen.classList.remove('hidden');
+                    loadUsers();
+                } else if (userExists) {
+                    // User found but NOT admin
+                    loginError.innerHTML = `⚠️ <strong>${username}</strong> — You are only a <span class="text-yellow-400">User</span>, not an Admin. Access denied.`;
+                    loginError.classList.remove('hidden');
+                } else {
+                    // User not found at all
+                    loginError.textContent = "User not found. Please check your username.";
+                    loginError.classList.remove('hidden');
+                }
+            } catch (err) {
+                console.error(err);
+                loginError.textContent = "Error connecting to database. Check internet connection.";
+                loginError.classList.remove('hidden');
+            } finally {
+                loginBtn.textContent = "Login";
+                loginBtn.disabled = false;
+            }
+        });
+
+        logoutBtn.addEventListener('click', () => {
+            currentUser = null;
+            usernameInput.value = '';
+            dashboardScreen.classList.add('hidden');
+            loginScreen.classList.remove('hidden');
+        });
+
+        // Load Users
+        window.loadUsers = async function() {
+            usersTableBody.innerHTML = '<tr><td colspan="3" class="p-4 text-center text-slate-400">Loading users...</td></tr>';
+            try {
+                const querySnapshot = await getDocs(collection(db, "users"));
+                let html = '';
+                querySnapshot.forEach((docSnap) => {
+                    const data = docSnap.data();
+                    const username = docSnap.id;
+                    const isAdmin = data.isAdmin === true;
+                    // Protect user1 from being demoted
+                    const isProtected = username.toLowerCase() === 'user1';
+                    
+                    const roleBadge = isAdmin 
+                        ? '<span class="bg-blue-500/20 text-blue-400 px-2 py-1 rounded text-xs font-bold border border-blue-500/30 whitespace-nowrap">Admin</span>' 
+                        : '<span class="bg-slate-700 text-slate-300 px-2 py-1 rounded text-xs font-bold whitespace-nowrap">User</span>';
+
+                    let actionBtn = '';
+                    if (isProtected) {
+                        actionBtn = `<button disabled class="bg-slate-700 text-slate-500 px-2 py-1 rounded text-xs md:text-sm cursor-not-allowed whitespace-nowrap" title="Permanent Admin">Make User</button>`;
+                    } else if (isAdmin) {
+                        actionBtn = `<button onclick="toggleAdmin('${username}', false)" class="bg-yellow-600/80 hover:bg-yellow-600 text-white px-2 py-1 rounded text-xs md:text-sm transition whitespace-nowrap">Make User</button>`;
+                    } else {
+                        actionBtn = `<button onclick="toggleAdmin('${username}', true)" class="bg-green-600/80 hover:bg-green-600 text-white px-2 py-1 rounded text-xs md:text-sm transition whitespace-nowrap">Make Admin</button>`;
+                    }
+
+                    html += `
+                        <tr class="border-b border-slate-700/50 hover:bg-slate-800/50 transition">
+                            <td class="p-3 md:p-4 font-medium">${username}</td>
+                            <td class="p-3 md:p-4">${roleBadge}</td>
+                            <td class="p-3 md:p-4">${actionBtn}</td>
+                        </tr>
+                    `;
+                });
+                usersTableBody.innerHTML = html;
+            } catch (err) {
+                console.error(err);
+                usersTableBody.innerHTML = '<tr><td colspan="3" class="p-4 text-center text-red-400">Failed to load users.</td></tr>';
+            }
+        };
+
+        // Toggle Admin Role
+        window.toggleAdmin = async function(username, makeAdmin) {
+            if(username.toLowerCase() === 'user1') {
+                alert('Cannot modify permissions for user1 (Permanent Admin).');
+                return;
+            }
+            try {
+                const userRef = doc(db, 'users', username);
+                await updateDoc(userRef, { isAdmin: makeAdmin });
+                loadUsers(); // refresh
+            } catch (err) {
+                console.error(err);
+                alert("Failed to update user role.");
+            }
+        };
+
+        // Load Campaigns - admin sees ALL campaigns
+        window.loadCampaigns = async function() {
+            campaignsGrid.innerHTML = '<div class="col-span-full text-center text-slate-400">Loading campaigns...</div>';
+            try {
+                // Admin panel loads ALL campaigns (including expired ones for editing)
+                const querySnapshot = await getDocs(collection(db, "campaigns"));
+                let html = '';
+                const now = Date.now();
+                querySnapshot.forEach((docSnap) => {
+                    const data = docSnap.data();
+                    const id = docSnap.id;
+                    const name = data.name || 'Unnamed Campaign';
+                    const videoUrl = data.videoUrl || '';
+                    const checkoutUrl = data.checkoutUrl || '';
+                    const targetViews = data.targetViews || 1000;
+                    const durationVal = data.durationValue || 1;
+                    const durationUnit = data.durationUnit || 'hours';
+                    const endDate = data.endDate || 0;
+                    const isActive = data.isActive !== false;
+
+                    // Check if campaign duration has expired
+                    const isExpired = endDate > 0 && now > endDate;
+
+                    const statusBadge = isExpired
+                        ? '<span class="bg-red-500/20 text-red-400 px-2 py-0.5 rounded text-xs font-bold border border-red-500/30">Expired</span>'
+                        : (isActive
+                            ? '<span class="bg-green-500/20 text-green-400 px-2 py-0.5 rounded text-xs font-bold border border-green-500/30">Active</span>'
+                            : '<span class="bg-slate-700 text-slate-400 px-2 py-0.5 rounded text-xs font-bold">Inactive</span>');
+
+                    const endDateStr = endDate > 0
+                        ? new Date(endDate).toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit'})
+                        : 'Not set';
+
+                    html += `
+                        <div class="glass-panel p-4 md:p-5 rounded-xl border ${isExpired ? 'border-red-500/30' : 'border-slate-700'} flex flex-col justify-between">
+                            <div>
+                                <div class="flex items-start justify-between gap-2 mb-2">
+                                    <h3 class="text-base md:text-lg font-bold text-white truncate" title="${name}">${name}</h3>
+                                    ${statusBadge}
+                                </div>
+                                <p class="text-xs text-slate-400 mb-1">Duration: <strong class="text-slate-300">${durationVal} ${durationUnit}</strong></p>
+                                <p class="text-xs text-slate-400 mb-1">Expires: <strong class="text-slate-300">${endDateStr}</strong></p>
+                                <p class="text-xs text-slate-400 mb-3">Views: <strong class="text-slate-300">${data.totalViews || 0}/${targetViews}</strong></p>
+                                <p class="text-xs md:text-sm text-slate-400 truncate" title="${videoUrl}">
+                                    <a href="${videoUrl}" target="_blank" class="text-blue-400 hover:underline">View Video Link</a>
+                                </p>
+                            </div>
+                            <div class="flex justify-end gap-2 mt-3 pt-3 border-t border-slate-700/50">
+                                <button onclick="editCampaign('${id}', '${name}', '${videoUrl}', '${checkoutUrl}', ${targetViews}, ${durationVal}, '${durationUnit}')" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded text-xs md:text-sm transition">Edit</button>
+                                <button onclick="deleteCampaign('${id}')" class="bg-red-600/80 hover:bg-red-600 text-white px-3 py-1.5 rounded text-xs md:text-sm transition">Delete</button>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                if(!html) {
+                    html = '<div class="col-span-full text-center text-slate-400 p-8 border border-dashed border-slate-600 rounded-xl">No campaigns found. Add one!</div>';
+                }
+                campaignsGrid.innerHTML = html;
+            } catch (err) {
+                console.error(err);
+                campaignsGrid.innerHTML = '<div class="col-span-full text-center text-red-400">Failed to load campaigns.</div>';
+            }
+        };
+
+        // Modal Logic
+        addCampaignBtn.addEventListener('click', () => {
+            modalTitle.textContent = "Add Campaign";
+            modalCampId.value = "";
+            modalCampName.value = "";
+            modalCampUrl.value = "";
+            modalCampCheckout.value = "";
+            modalCampTargetViews.value = "1000";
+            modalCampDurationVal.value = "1";
+            modalCampDurationUnit.value = "hours";
+            campaignModal.classList.remove('hidden');
+        });
+
+        modalCancel.addEventListener('click', () => {
+            campaignModal.classList.add('hidden');
+        });
+
+        window.editCampaign = function(id, name, url, checkout, targetViews, durationVal, durationUnit) {
+            modalTitle.textContent = "Edit Campaign";
+            modalCampId.value = id;
+            modalCampName.value = name;
+            modalCampUrl.value = url;
+            modalCampCheckout.value = checkout;
+            modalCampTargetViews.value = targetViews;
+            modalCampDurationVal.value = durationVal;
+            modalCampDurationUnit.value = durationUnit;
+            campaignModal.classList.remove('hidden');
+        };
+
+        window.deleteCampaign = async function(id) {
+            if(confirm("Are you sure you want to delete this campaign?")) {
+                try {
+                    // FIXED: Changed "Campaigns" to "campaigns"
+                    await deleteDoc(doc(db, "campaigns", id));
+                    loadCampaigns();
+                } catch(err) {
+                    console.error(err);
+                    alert("Failed to delete campaign.");
+                }
+            }
+        };
+
+        modalSave.addEventListener('click', async () => {
+            const id = modalCampId.value;
+            const name = modalCampName.value.trim();
+            const url = modalCampUrl.value.trim();
+            const checkout = modalCampCheckout.value.trim();
+            const targetViews = parseInt(modalCampTargetViews.value) || 1000;
+            const durationVal = parseInt(modalCampDurationVal.value) || 1;
+            const durationUnit = modalCampDurationUnit.value;
+
+            if(!name || !url) {
+                alert("Please fill in both Campaign Name and Video URL.");
+                return;
+            }
+
+            modalSave.disabled = true;
+            modalSave.textContent = "Saving...";
+
+            // Compute endDate from now + duration
+            function computeEndDate(val, unit) {
+                const now = Date.now();
+                const ms = {
+                    'hours': val * 60 * 60 * 1000,
+                    'days': val * 24 * 60 * 60 * 1000,
+                    'weeks': val * 7 * 24 * 60 * 60 * 1000,
+                    'months': val * 30 * 24 * 60 * 60 * 1000
+                };
+                return now + (ms[unit] || ms['hours']);
+            }
+
+            try {
+                const campaignData = {
+                    name: name,
+                    videoUrl: url,
+                    checkoutUrl: checkout,
+                    targetViews: targetViews,
+                    durationValue: durationVal,
+                    durationUnit: durationUnit,
+                    isActive: true
+                };
+
+                if(id) {
+                    // On edit: recalculate endDate from NOW + new duration (extends the campaign)
+                    campaignData.endDate = computeEndDate(durationVal, durationUnit);
+                    await updateDoc(doc(db, "campaigns", id), campaignData);
+                } else {
+                    // New campaign
+                    const newId = Date.now().toString();
+                    const now = Date.now();
+                    campaignData.id = newId;
+                    campaignData.createdAt = now;
+                    campaignData.startDate = now;
+                    campaignData.totalViews = 0;
+                    campaignData.endDate = computeEndDate(durationVal, durationUnit);
+                    await setDoc(doc(db, "campaigns", newId), campaignData);
+                }
+                campaignModal.classList.add('hidden');
+                loadCampaigns();
+            } catch(err) {
+                console.error(err);
+                alert("Failed to save campaign.");
+            } finally {
+                modalSave.disabled = false;
+                modalSave.textContent = "Save";
+            }
+        });
+
+    </script>
+</body>
+</html>
